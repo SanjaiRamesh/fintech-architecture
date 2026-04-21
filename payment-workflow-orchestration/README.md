@@ -37,13 +37,13 @@ This architecture demonstrates how to:
 
 ## Repository Structure
 
-├── README.md
-├── architecture-overview.md
-├── payment-flow.md
-├── trade-offs.md
-├── problem-statement.md
-├── requirements.md
-└── diagrams
+├── README.md  
+├── architecture-overview.md  
+├── payment-flow.md  
+├── trade-offs.md  
+├── problem-statement.md  
+├── requirements.md  
+└── diagrams  
 
 
 ---
