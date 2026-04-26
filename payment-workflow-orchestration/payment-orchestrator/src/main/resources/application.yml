@@ -1,0 +1,76 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: payment-orchestrator
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/payment_orchestrator_db
+    username: ${DB_USERNAME:payment_user}
+    password: ${DB_PASSWORD:payment_pass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 50
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        spring.json.add.type.headers: false
+        enable.idempotence: true
+
+# downstream service URLs — overridden via env vars in Docker / Kubernetes
+services:
+  validation:
+    url: ${VALIDATION_SERVICE_URL:http://localhost:8081}
+  risk:
+    url: ${RISK_SERVICE_URL:http://localhost:8082}
+  routing:
+    url: ${ROUTING_SERVICE_URL:http://localhost:8083}
+  fx:
+    url: ${FX_SERVICE_URL:http://localhost:8084}
+  ledger:
+    url: ${LEDGER_SERVICE_URL:http://localhost:8085}
+  provider:
+    url: ${PROVIDER_SERVICE_URL:http://localhost:8086}
+
+# async thread pool for workflow execution
+async:
+  workflow:
+    core-pool-size: 10
+    max-pool-size: 50
+    queue-capacity: 100
+    thread-name-prefix: workflow-
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html

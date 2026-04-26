@@ -1,0 +1,42 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: risk-fraud-service
+  datasource:
+    url: ${RISK_DB_URL:jdbc:postgresql://localhost:5432/risk_fraud_db}
+    username: ${RISK_DB_USER:payment_user}
+    password: ${RISK_DB_PASSWORD:payment_pass}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+risk:
+  thresholds:
+    high-amount: 50000
+    suspicious-round-amount: 9000
+
+logging:
+  level:
+    com.payment.risk: DEBUG

@@ -1,0 +1,40 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: fx-service
+  datasource:
+    url: ${FX_DB_URL:jdbc:postgresql://localhost:5432/fx_db}
+    username: ${FX_DB_USER:payment_user}
+    password: ${FX_DB_PASSWORD:payment_pass}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+fx:
+  spread: 0.005  # 0.5% spread applied on top of mid-market rate
+
+logging:
+  level:
+    com.payment.fx: DEBUG

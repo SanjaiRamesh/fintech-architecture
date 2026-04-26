@@ -46,7 +46,8 @@ This architecture demonstrates how to:
 │   ├── 02-requirements.md
 │   ├── 03-architecture-overview.md
 │   ├── 04-payment-flow.md
-│   └── 06-trade-offs.md
+│   ├── 06-trade-offs.md
+│   └── 08-payment-rails-reference.md
 └── lld/
     ├── 01-api-contracts.md
     ├── 02-data-models.md
@@ -58,8 +59,6 @@ This architecture demonstrates how to:
 ---
 
 ## Documents
-
-> Start with the problem statement, then the architecture overview for the best reading order.
 
 ### Problem Statement
 
@@ -98,6 +97,14 @@ Step-by-step explanation of how a payment moves through the system.
 Key architectural decisions and why certain approaches were chosen.
 
 [docs/06-trade-offs.md](docs/06-trade-offs.md)
+
+---
+
+### Payment Rails Reference
+
+A reference guide covering SEPA, SWIFT, NEFT, RTGS, and IMPS — components, protocols, settlement types, and how they map to this architecture.
+
+[docs/08-payment-rails-reference.md](docs/08-payment-rails-reference.md)
 
 ---
 
