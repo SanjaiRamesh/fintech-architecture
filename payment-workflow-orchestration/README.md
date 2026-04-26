@@ -37,24 +37,35 @@ This architecture demonstrates how to:
 
 ## Repository Structure
 
-├── README.md  
-├── architecture-overview.md  
-├── payment-flow.md  
-├── trade-offs.md  
-├── problem-statement.md  
-├── requirements.md  
-└── diagrams  
-
+```
+├── README.md
+├── diagram/
+│   └── global-payment-workflow-orchestration.png
+├── docs/
+│   ├── 01-problem-statement.md
+│   ├── 02-requirements.md
+│   ├── 03-architecture-overview.md
+│   ├── 04-payment-flow.md
+│   └── 06-trade-offs.md
+└── lld/
+    ├── 01-api-contracts.md
+    ├── 02-data-models.md
+    ├── 03-event-schemas.md
+    ├── 04-database-schemas.md
+    └── 05-sequence-diagrams.md
+```
 
 ---
 
 ## Documents
 
+> Start with the problem statement, then the architecture overview for the best reading order.
+
 ### Problem Statement
 
 Describes the challenges in building scalable payment platforms and the motivation behind this design.
 
-problem-statement.md
+[docs/01-problem-statement.md](docs/01-problem-statement.md)
 
 ---
 
@@ -62,7 +73,7 @@ problem-statement.md
 
 High-level functional and non-functional expectations for the system.
 
-requirements.md
+[docs/02-requirements.md](docs/02-requirements.md)
 
 ---
 
@@ -70,7 +81,7 @@ requirements.md
 
 Explains the core components and how they interact.
 
-architecture-overview.md
+[docs/03-architecture-overview.md](docs/03-architecture-overview.md)
 
 ---
 
@@ -78,7 +89,7 @@ architecture-overview.md
 
 Step-by-step explanation of how a payment moves through the system.
 
-payment-flow.md
+[docs/04-payment-flow.md](docs/04-payment-flow.md)
 
 ---
 
@@ -86,7 +97,21 @@ payment-flow.md
 
 Key architectural decisions and why certain approaches were chosen.
 
-trade-offs.md
+[docs/06-trade-offs.md](docs/06-trade-offs.md)
+
+---
+
+## Low Level Design (LLD)
+
+Detailed technical specifications for implementation.
+
+| Document | Description |
+|---|---|
+| [lld/01-api-contracts.md](lld/01-api-contracts.md) | REST API contracts for all services with request/response examples |
+| [lld/02-data-models.md](lld/02-data-models.md) | Domain entities, DTOs, and enumerations |
+| [lld/03-event-schemas.md](lld/03-event-schemas.md) | Kafka topics, event types, and payload schemas |
+| [lld/04-database-schemas.md](lld/04-database-schemas.md) | PostgreSQL table definitions per service |
+| [lld/05-sequence-diagrams.md](lld/05-sequence-diagrams.md) | Step-by-step interaction flows for key scenarios |
 
 ---
 
@@ -96,7 +121,7 @@ trade-offs.md
 - event-driven systems
 - payment orchestration patterns
 - provider abstraction
-- distributed system reliability
+- idempotency and distributed reliability
 - observability patterns
 - scalable API platform design
 
@@ -127,8 +152,7 @@ This repository is part of my architecture portfolio to demonstrate:
 
 ## Related Portfolio Sections
 
-Architecture Portfolio:
-https://sanjairamesh.github.io/architecture/
+[Architecture Portfolio](https://sanjairamesh.github.io/architecture/)
 
 ---
 
