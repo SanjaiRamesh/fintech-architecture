@@ -6,9 +6,9 @@ spring:
     name: payment-orchestrator
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/payment_orchestrator_db
-    username: ${DB_USERNAME:payment_user}
-    password: ${DB_PASSWORD:payment_pass}
+    url: ${ORCHESTRATOR_DB_URL:jdbc:postgresql://localhost:5432/payment_orchestrator_db}
+    username: ${ORCHESTRATOR_DB_USER:payment_user}
+    password: ${ORCHESTRATOR_DB_PASSWORD:payment_pass}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10

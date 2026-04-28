@@ -1,0 +1,76 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            allowedHeaders: "*"
+
+      routes:
+        - id: payment-orchestrator
+          uri: ${PAYMENT_ORCHESTRATOR_URL:http://localhost:8080}
+          predicates:
+            - Path=/payments/**
+
+        - id: validation-service
+          uri: ${VALIDATION_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/validate/**
+
+        - id: risk-fraud-service
+          uri: ${RISK_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/risk/**
+
+        - id: routing-engine
+          uri: ${ROUTING_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/route/**
+
+        - id: fx-service
+          uri: ${FX_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/fx/**
+
+        - id: ledger-service
+          uri: ${LEDGER_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/ledger/**
+
+        - id: provider-integration
+          uri: ${PROVIDER_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/providers/**
+
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/notifications/**
+
+        - id: reconciliation-service
+          uri: ${RECONCILIATION_SERVICE_URL:http://localhost:8088}
+          predicates:
+            - Path=/reconciliation/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.payment.gateway: DEBUG

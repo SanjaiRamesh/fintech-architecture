@@ -1,0 +1,233 @@
+# Payment Workflow Orchestration — Service-only docker-compose
+#
+# Prerequisites (run separately on your machine):
+#   - PostgreSQL  : localhost:5432  (create the databases below first — see db-init.sql)
+#   - Kafka       : localhost:9092
+#
+# Build JARs before first run:
+#   mvn clean package -DskipTests
+#
+# Then start all services:
+#   docker-compose up
+#
+# Access the system via the API Gateway at http://localhost:9000
+
+version: "3.8"
+
+# host.docker.internal resolves to your laptop's IP from inside Docker Desktop (Windows/Mac).
+# If you are on Linux, replace host.docker.internal with your host IP (e.g. 172.17.0.1)
+# or add:  extra_hosts: ["host.docker.internal:host-gateway"]  to each service.
+x-db-defaults: &db-defaults
+  SPRING_JPA_HIBERNATE_DDL_AUTO: update
+  SPRING_JPA_SHOW_SQL: "false"
+
+networks:
+  payment-net:
+    driver: bridge
+
+services:
+
+  # ── API Gateway ────────────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: api-gateway/target/api-gateway-1.0.0-SNAPSHOT.jar
+    image: payment/api-gateway:local
+    container_name: api-gateway
+    ports:
+      - "9000:9000"
+    environment:
+      PAYMENT_ORCHESTRATOR_URL: http://payment-orchestrator:8080
+      VALIDATION_SERVICE_URL:   http://validation-service:8081
+      RISK_SERVICE_URL:         http://risk-fraud-service:8082
+      ROUTING_SERVICE_URL:      http://routing-engine:8083
+      FX_SERVICE_URL:           http://fx-service:8084
+      LEDGER_SERVICE_URL:       http://ledger-service:8085
+      PROVIDER_SERVICE_URL:     http://provider-integration:8086
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
+      RECONCILIATION_SERVICE_URL: http://reconciliation-service:8088
+    depends_on:
+      - payment-orchestrator
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── Payment Orchestrator ───────────────────────────────────────────────────
+  payment-orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: payment-orchestrator/target/payment-orchestrator-1.0.0-SNAPSHOT.jar
+    image: payment/payment-orchestrator:local
+    container_name: payment-orchestrator
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *db-defaults
+      ORCHESTRATOR_DB_URL:      jdbc:postgresql://host.docker.internal:5432/payment_orchestrator_db
+      ORCHESTRATOR_DB_USER:     payment_user
+      ORCHESTRATOR_DB_PASSWORD: payment_pass
+      KAFKA_BOOTSTRAP_SERVERS:  host.docker.internal:9092
+      VALIDATION_SERVICE_URL:     http://validation-service:8081
+      RISK_SERVICE_URL:           http://risk-fraud-service:8082
+      ROUTING_SERVICE_URL:        http://routing-engine:8083
+      FX_SERVICE_URL:             http://fx-service:8084
+      LEDGER_SERVICE_URL:         http://ledger-service:8085
+      PROVIDER_SERVICE_URL:       http://provider-integration:8086
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── Validation Service ─────────────────────────────────────────────────────
+  validation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: validation-service/target/validation-service-1.0.0-SNAPSHOT.jar
+    image: payment/validation-service:local
+    container_name: validation-service
+    ports:
+      - "8081:8081"
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── Risk & Fraud Service ───────────────────────────────────────────────────
+  risk-fraud-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: risk-fraud-service/target/risk-fraud-service-1.0.0-SNAPSHOT.jar
+    image: payment/risk-fraud-service:local
+    container_name: risk-fraud-service
+    ports:
+      - "8082:8082"
+    environment:
+      <<: *db-defaults
+      RISK_DB_URL:      jdbc:postgresql://host.docker.internal:5432/risk_fraud_db
+      RISK_DB_USER:     payment_user
+      RISK_DB_PASSWORD: payment_pass
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── Routing Engine ─────────────────────────────────────────────────────────
+  routing-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: routing-engine/target/routing-engine-1.0.0-SNAPSHOT.jar
+    image: payment/routing-engine:local
+    container_name: routing-engine
+    ports:
+      - "8083:8083"
+    environment:
+      <<: *db-defaults
+      ROUTING_DB_URL:      jdbc:postgresql://host.docker.internal:5432/routing_db
+      ROUTING_DB_USER:     payment_user
+      ROUTING_DB_PASSWORD: payment_pass
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── FX Service ────────────────────────────────────────────────────────────
+  fx-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: fx-service/target/fx-service-1.0.0-SNAPSHOT.jar
+    image: payment/fx-service:local
+    container_name: fx-service
+    ports:
+      - "8084:8084"
+    environment:
+      <<: *db-defaults
+      FX_DB_URL:      jdbc:postgresql://host.docker.internal:5432/fx_db
+      FX_DB_USER:     payment_user
+      FX_DB_PASSWORD: payment_pass
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── Ledger Service ────────────────────────────────────────────────────────
+  ledger-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: ledger-service/target/ledger-service-1.0.0-SNAPSHOT.jar
+    image: payment/ledger-service:local
+    container_name: ledger-service
+    ports:
+      - "8085:8085"
+    environment:
+      <<: *db-defaults
+      LEDGER_DB_URL:      jdbc:postgresql://host.docker.internal:5432/ledger_db
+      LEDGER_DB_USER:     payment_user
+      LEDGER_DB_PASSWORD: payment_pass
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── Provider Integration ──────────────────────────────────────────────────
+  provider-integration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: provider-integration/target/provider-integration-1.0.0-SNAPSHOT.jar
+    image: payment/provider-integration:local
+    container_name: provider-integration
+    ports:
+      - "8086:8086"
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── Notification Service ──────────────────────────────────────────────────
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: notification-service/target/notification-service-1.0.0-SNAPSHOT.jar
+    image: payment/notification-service:local
+    container_name: notification-service
+    ports:
+      - "8087:8087"
+    environment:
+      <<: *db-defaults
+      NOTIFICATION_DB_URL:      jdbc:postgresql://host.docker.internal:5432/notification_db
+      NOTIFICATION_DB_USER:     payment_user
+      NOTIFICATION_DB_PASSWORD: payment_pass
+      KAFKA_BOOTSTRAP_SERVERS:  host.docker.internal:9092
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  # ── Reconciliation Service ────────────────────────────────────────────────
+  reconciliation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: reconciliation-service/target/reconciliation-service-1.0.0-SNAPSHOT.jar
+    image: payment/reconciliation-service:local
+    container_name: reconciliation-service
+    ports:
+      - "8088:8088"
+    environment:
+      <<: *db-defaults
+      RECONCILIATION_DB_URL:      jdbc:postgresql://host.docker.internal:5432/reconciliation_db
+      RECONCILIATION_DB_USER:     payment_user
+      RECONCILIATION_DB_PASSWORD: payment_pass
+    networks:
+      - payment-net
+    restart: unless-stopped
