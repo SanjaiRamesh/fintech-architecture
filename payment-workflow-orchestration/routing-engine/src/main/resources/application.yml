@@ -5,7 +5,7 @@ spring:
   application:
     name: routing-engine
   datasource:
-    url: ${ROUTING_DB_URL:jdbc:postgresql://localhost:5432/routing_db}
+    url: ${ROUTING_DB_URL:jdbc:postgresql://host.docker.internal:5432/routing_db?TimeZone=UTC}
     username: ${ROUTING_DB_USER:payment_user}
     password: ${ROUTING_DB_PASSWORD:payment_pass}
     driver-class-name: org.postgresql.Driver
@@ -17,6 +17,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        jdbc:
+          time_zone: UTC
 
 management:
   endpoints:

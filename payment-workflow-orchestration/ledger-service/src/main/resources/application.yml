@@ -5,7 +5,7 @@ spring:
   application:
     name: ledger-service
   datasource:
-    url: ${LEDGER_DB_URL:jdbc:postgresql://localhost:5432/ledger_db}
+    url: ${LEDGER_DB_URL:jdbc:postgresql://host.docker.internal:5432/ledger_db?TimeZone=UTC}
     username: ${LEDGER_DB_USER:payment_user}
     password: ${LEDGER_DB_PASSWORD:payment_pass}
     driver-class-name: org.postgresql.Driver
@@ -16,6 +16,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
         format_sql: true
 
 management:

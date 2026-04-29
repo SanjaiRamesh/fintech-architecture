@@ -5,7 +5,7 @@
 # ARG JAR_FILE is set per-service in docker-compose.yml
 
 ARG JAR_FILE
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 # Non-root user — principle of least privilege
 RUN addgroup -S payment && adduser -S payment -G payment

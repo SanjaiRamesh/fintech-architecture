@@ -1,87 +1,74 @@
-# Payment Workflow Orchestration — Service-only docker-compose
+# Payment Workflow Orchestration — Full stack docker-compose
 #
-# Prerequisites (run separately on your machine):
-#   - PostgreSQL  : localhost:5432  (create the databases below first — see db-init.sql)
-#   - Kafka       : localhost:9092
+# Starts infrastructure (PostgreSQL, Kafka) + all 9 services in one network.
+# Services talk to each other and to infra by container name — no host.docker.internal needed.
 #
-# Build JARs before first run:
-#   mvn clean package -DskipTests
-#
-# Then start all services:
-#   docker-compose up
+# First-time setup:
+#   1. mvn clean package -DskipTests
+#   2. docker-compose up --build
 #
 # Access the system via the API Gateway at http://localhost:9000
 
 version: "3.8"
 
-# host.docker.internal resolves to your laptop's IP from inside Docker Desktop (Windows/Mac).
-# If you are on Linux, replace host.docker.internal with your host IP (e.g. 172.17.0.1)
-# or add:  extra_hosts: ["host.docker.internal:host-gateway"]  to each service.
-x-db-defaults: &db-defaults
-  SPRING_JPA_HIBERNATE_DDL_AUTO: update
-  SPRING_JPA_SHOW_SQL: "false"
-
 networks:
   payment-net:
     driver: bridge
 
+volumes:
+  postgres-data:
+  kafka-data:
+
 services:
 
-  # ── API Gateway ────────────────────────────────────────────────────────────
-  api-gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        JAR_FILE: api-gateway/target/api-gateway-1.0.0-SNAPSHOT.jar
-    image: payment/api-gateway:local
-    container_name: api-gateway
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
     ports:
-      - "9000:9000"
+      - "5433:5432"
     environment:
-      PAYMENT_ORCHESTRATOR_URL: http://payment-orchestrator:8080
-      VALIDATION_SERVICE_URL:   http://validation-service:8081
-      RISK_SERVICE_URL:         http://risk-fraud-service:8082
-      ROUTING_SERVICE_URL:      http://routing-engine:8083
-      FX_SERVICE_URL:           http://fx-service:8084
-      LEDGER_SERVICE_URL:       http://ledger-service:8085
-      PROVIDER_SERVICE_URL:     http://provider-integration:8086
-      NOTIFICATION_SERVICE_URL: http://notification-service:8087
-      RECONCILIATION_SERVICE_URL: http://reconciliation-service:8088
-    depends_on:
-      - payment-orchestrator
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db-init.sql:/docker-entrypoint-initdb.d/db-init.sql
     networks:
       - payment-net
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ── Payment Orchestrator ───────────────────────────────────────────────────
-  payment-orchestrator:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        JAR_FILE: payment-orchestrator/target/payment-orchestrator-1.0.0-SNAPSHOT.jar
-    image: payment/payment-orchestrator:local
-    container_name: payment-orchestrator
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka-compose
     ports:
-      - "8080:8080"
+      - "9093:9092"
     environment:
-      <<: *db-defaults
-      ORCHESTRATOR_DB_URL:      jdbc:postgresql://host.docker.internal:5432/payment_orchestrator_db
-      ORCHESTRATOR_DB_USER:     payment_user
-      ORCHESTRATOR_DB_PASSWORD: payment_pass
-      KAFKA_BOOTSTRAP_SERVERS:  host.docker.internal:9092
-      VALIDATION_SERVICE_URL:     http://validation-service:8081
-      RISK_SERVICE_URL:           http://risk-fraud-service:8082
-      ROUTING_SERVICE_URL:        http://routing-engine:8083
-      FX_SERVICE_URL:             http://fx-service:8084
-      LEDGER_SERVICE_URL:         http://ledger-service:8085
-      PROVIDER_SERVICE_URL:       http://provider-integration:8086
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     networks:
       - payment-net
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
 
-  # ── Validation Service ─────────────────────────────────────────────────────
+  # ── Application Services ───────────────────────────────────────────────────
+
   validation-service:
     build:
       context: .
@@ -96,7 +83,6 @@ services:
       - payment-net
     restart: unless-stopped
 
-  # ── Risk & Fraud Service ───────────────────────────────────────────────────
   risk-fraud-service:
     build:
       context: .
@@ -108,15 +94,16 @@ services:
     ports:
       - "8082:8082"
     environment:
-      <<: *db-defaults
-      RISK_DB_URL:      jdbc:postgresql://host.docker.internal:5432/risk_fraud_db
+      RISK_DB_URL:      jdbc:postgresql://postgres:5432/risk_fraud_db?TimeZone=UTC
       RISK_DB_USER:     payment_user
       RISK_DB_PASSWORD: payment_pass
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - payment-net
     restart: unless-stopped
 
-  # ── Routing Engine ─────────────────────────────────────────────────────────
   routing-engine:
     build:
       context: .
@@ -128,15 +115,16 @@ services:
     ports:
       - "8083:8083"
     environment:
-      <<: *db-defaults
-      ROUTING_DB_URL:      jdbc:postgresql://host.docker.internal:5432/routing_db
+      ROUTING_DB_URL:      jdbc:postgresql://postgres:5432/routing_db?TimeZone=UTC
       ROUTING_DB_USER:     payment_user
       ROUTING_DB_PASSWORD: payment_pass
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - payment-net
     restart: unless-stopped
 
-  # ── FX Service ────────────────────────────────────────────────────────────
   fx-service:
     build:
       context: .
@@ -148,15 +136,16 @@ services:
     ports:
       - "8084:8084"
     environment:
-      <<: *db-defaults
-      FX_DB_URL:      jdbc:postgresql://host.docker.internal:5432/fx_db
+      FX_DB_URL:      jdbc:postgresql://postgres:5432/fx_db?TimeZone=UTC
       FX_DB_USER:     payment_user
       FX_DB_PASSWORD: payment_pass
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - payment-net
     restart: unless-stopped
 
-  # ── Ledger Service ────────────────────────────────────────────────────────
   ledger-service:
     build:
       context: .
@@ -168,15 +157,16 @@ services:
     ports:
       - "8085:8085"
     environment:
-      <<: *db-defaults
-      LEDGER_DB_URL:      jdbc:postgresql://host.docker.internal:5432/ledger_db
+      LEDGER_DB_URL:      jdbc:postgresql://postgres:5432/ledger_db?TimeZone=UTC
       LEDGER_DB_USER:     payment_user
       LEDGER_DB_PASSWORD: payment_pass
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - payment-net
     restart: unless-stopped
 
-  # ── Provider Integration ──────────────────────────────────────────────────
   provider-integration:
     build:
       context: .
@@ -191,7 +181,48 @@ services:
       - payment-net
     restart: unless-stopped
 
-  # ── Notification Service ──────────────────────────────────────────────────
+  payment-orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: payment-orchestrator/target/payment-orchestrator-1.0.0-SNAPSHOT.jar
+    image: payment/payment-orchestrator:local
+    container_name: payment-orchestrator
+    ports:
+      - "8080:8080"
+    environment:
+      ORCHESTRATOR_DB_URL:      jdbc:postgresql://postgres:5432/payment_orchestrator_db?TimeZone=UTC
+      ORCHESTRATOR_DB_USER:     payment_user
+      ORCHESTRATOR_DB_PASSWORD: payment_pass
+      KAFKA_BOOTSTRAP_SERVERS:  kafka:9092
+      VALIDATION_SERVICE_URL:   http://validation-service:8081
+      RISK_SERVICE_URL:         http://risk-fraud-service:8082
+      ROUTING_SERVICE_URL:      http://routing-engine:8083
+      FX_SERVICE_URL:           http://fx-service:8084
+      LEDGER_SERVICE_URL:       http://ledger-service:8085
+      PROVIDER_SERVICE_URL:     http://provider-integration:8086
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      validation-service:
+        condition: service_started
+      risk-fraud-service:
+        condition: service_started
+      routing-engine:
+        condition: service_started
+      fx-service:
+        condition: service_started
+      ledger-service:
+        condition: service_started
+      provider-integration:
+        condition: service_started
+    networks:
+      - payment-net
+    restart: unless-stopped
+
   notification-service:
     build:
       context: .
@@ -203,16 +234,19 @@ services:
     ports:
       - "8087:8087"
     environment:
-      <<: *db-defaults
-      NOTIFICATION_DB_URL:      jdbc:postgresql://host.docker.internal:5432/notification_db
+      NOTIFICATION_DB_URL:      jdbc:postgresql://postgres:5432/notification_db?TimeZone=UTC
       NOTIFICATION_DB_USER:     payment_user
       NOTIFICATION_DB_PASSWORD: payment_pass
-      KAFKA_BOOTSTRAP_SERVERS:  host.docker.internal:9092
+      KAFKA_BOOTSTRAP_SERVERS:  kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     networks:
       - payment-net
     restart: unless-stopped
 
-  # ── Reconciliation Service ────────────────────────────────────────────────
   reconciliation-service:
     build:
       context: .
@@ -224,10 +258,38 @@ services:
     ports:
       - "8088:8088"
     environment:
-      <<: *db-defaults
-      RECONCILIATION_DB_URL:      jdbc:postgresql://host.docker.internal:5432/reconciliation_db
+      RECONCILIATION_DB_URL:      jdbc:postgresql://postgres:5432/reconciliation_db?TimeZone=UTC
       RECONCILIATION_DB_USER:     payment_user
       RECONCILIATION_DB_PASSWORD: payment_pass
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - payment-net
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: api-gateway/target/api-gateway-1.0.0-SNAPSHOT.jar
+    image: payment/api-gateway:local
+    container_name: api-gateway
+    ports:
+      - "9000:9000"
+    environment:
+      PAYMENT_ORCHESTRATOR_URL:   http://payment-orchestrator:8080
+      VALIDATION_SERVICE_URL:     http://validation-service:8081
+      RISK_SERVICE_URL:           http://risk-fraud-service:8082
+      ROUTING_SERVICE_URL:        http://routing-engine:8083
+      FX_SERVICE_URL:             http://fx-service:8084
+      LEDGER_SERVICE_URL:         http://ledger-service:8085
+      PROVIDER_SERVICE_URL:       http://provider-integration:8086
+      NOTIFICATION_SERVICE_URL:   http://notification-service:8087
+      RECONCILIATION_SERVICE_URL: http://reconciliation-service:8088
+    depends_on:
+      - payment-orchestrator
     networks:
       - payment-net
     restart: unless-stopped

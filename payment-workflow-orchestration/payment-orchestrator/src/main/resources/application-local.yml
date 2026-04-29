@@ -1,0 +1,13 @@
+services:
+  validation:
+    url: http://localhost:8081
+  risk:
+    url: http://localhost:8082
+  routing:
+    url: http://localhost:8083
+  fx:
+    url: http://localhost:8084
+  ledger:
+    url: http://localhost:8085
+  provider:
+    url: http://localhost:8086

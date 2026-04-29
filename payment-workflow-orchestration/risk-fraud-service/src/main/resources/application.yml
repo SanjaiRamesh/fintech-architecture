@@ -5,7 +5,7 @@ spring:
   application:
     name: risk-fraud-service
   datasource:
-    url: ${RISK_DB_URL:jdbc:postgresql://localhost:5432/risk_fraud_db}
+    url: ${RISK_DB_URL:jdbc:postgresql://host.docker.internal:5432/risk_fraud_db?TimeZone=UTC}
     username: ${RISK_DB_USER:payment_user}
     password: ${RISK_DB_PASSWORD:payment_pass}
     driver-class-name: org.postgresql.Driver
@@ -16,6 +16,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
 
 management:
   endpoints:

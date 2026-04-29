@@ -5,7 +5,7 @@ spring:
   application:
     name: reconciliation-service
   datasource:
-    url: ${RECONCILIATION_DB_URL:jdbc:postgresql://localhost:5432/reconciliation_db}
+    url: ${RECONCILIATION_DB_URL:jdbc:postgresql://host.docker.internal:5432/reconciliation_db?TimeZone=UTC}
     username: ${RECONCILIATION_DB_USER:payment_user}
     password: ${RECONCILIATION_DB_PASSWORD:payment_pass}
     driver-class-name: org.postgresql.Driver
@@ -16,6 +16,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
 
 management:
   endpoints:

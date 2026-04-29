@@ -5,7 +5,7 @@ spring:
   application:
     name: notification-service
   datasource:
-    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notification_db}
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://host.docker.internal:5432/notification_db?TimeZone=UTC}
     username: ${NOTIFICATION_DB_USER:payment_user}
     password: ${NOTIFICATION_DB_PASSWORD:payment_pass}
     driver-class-name: org.postgresql.Driver
@@ -16,8 +16,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:host.docker.internal:9092}
     consumer:
       group-id: notification-service
       auto-offset-reset: earliest
